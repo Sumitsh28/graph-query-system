@@ -1,0 +1,3 @@
+CREATE USER llm_reader IF NOT EXISTS SET PASSWORD "supersecretreadonlypassword" CHANGE NOT REQUIRED;
+
+SHOW USERS;
