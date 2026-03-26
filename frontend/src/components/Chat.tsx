@@ -501,7 +501,7 @@ export default function ChatInterface({
                   : 1
               }
               className="flex-1 bg-transparent border-none px-2 py-2.5 focus:outline-none focus:ring-0 text-sm resize-none min-h-[44px] max-h-[120px]"
-              style={{ scrollbarWidth: "none" }}
+              style={{ scrollbarWidth: "none", color: "black" }}
             />
 
             <button
