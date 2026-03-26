@@ -141,9 +141,12 @@ Navigate to **[http://localhost:3000](http://localhost:3000)**
 
 ## 📸 User Interface Overview
 
-- **[Screenshot Placeholder: Main Split-Pane Layout showcasing the dark-mode 3D graph on the left and the Chat UI on the right.]**
-- **[Screenshot Placeholder: The 'Execution Logic' accordion expanded, showing the generated Cypher and latency.]**
-- **[Screenshot Placeholder: A zoomed-in view of a 'Bottleneck' node (Amber) with the dynamic property HUD card open.]**
+<img width="1680" height="1050" alt="Screenshot 2026-03-26 at 5 52 42 PM" src="https://github.com/user-attachments/assets/e50f12e5-55fa-42de-ac05-6f324cb2d3a4" />
+<img width="1680" height="1050" alt="Screenshot 2026-03-26 at 5 52 26 PM" src="https://github.com/user-attachments/assets/205de104-f407-4bc1-b344-a8f087c24e09" />
+<img width="1680" height="1050" alt="Screenshot 2026-03-26 at 11 36 12 PM" src="https://github.com/user-attachments/assets/85d6e340-1c39-483f-ac16-b3ede8d0c826" />
+<img width="1680" height="1050" alt="Screenshot 2026-03-26 at 11 38 52 PM" src="https://github.com/user-attachments/assets/5f38d6c8-40eb-4666-9d90-f846508dc813" />
+<img width="920" height="1508" alt="image" src="https://github.com/user-attachments/assets/d4dd4d42-6185-4237-ad57-56067f992966" />
+<img width="2314" height="1944" alt="image" src="https://github.com/user-attachments/assets/fea52724-4184-4509-91f2-10ca6e9a3b17" />
 
 ---
 
@@ -198,83 +201,6 @@ This document outlines the core design decisions, mathematical graph algorithms,
 
 ---
 
-```mermaid
-flowchart TB
-%% --- STYLING ---
-classDef user fill:#1e293b,stroke:#0f172a,stroke-width:2px,color:#fff,font-weight:bold
-classDef frontend fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-classDef backend fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
-classDef ai fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff
-classDef db fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
-classDef ingestion fill:#ef4444,stroke:#b91c1c,stroke-width:2px,color:#fff
-
-    %% --- ACTORS ---
-    User(("👤 Enterprise User")):::user
-
-    %% --- FRONTEND (Next.js) ---
-    subgraph "Layer 5: Frontend (Next.js / React)"
-        direction LR
-        UI["💬 Chat UI<br>Speech-to-Text & Markdown"]:::frontend
-        WebGL["🌌 3D/2D WebGL Engine<br>react-force-graph"]:::frontend
-        Store[("💾 LocalStorage<br>Session Memory")]:::frontend
-
-        UI <-->|"Event Bus: Camera Framing & Data Particles"| WebGL
-        UI <-->|"Persist History"| Store
-    end
-
-    %% --- BACKEND (FastAPI) ---
-    subgraph "Layer 4: API Gateway (FastAPI)"
-        direction TB
-        API["⚡ REST API<br>Endpoints: /api/chat & /api/graph"]:::backend
-    end
-
-    %% --- AI ORCHESTRATION (LangGraph) ---
-    subgraph "Layer 3: AI Orchestration (LangGraph Engine)"
-        direction TB
-        Router{"1. Semantic Router"}:::ai
-        Planner["2. Planner Agent<br>Few-Shot Cypher Generation"]:::ai
-        Sandbox{"3. Execution Sandbox<br>Cypher Validator"}:::ai
-        Summarizer["4. Summarizer Agent<br>Data-to-English NLG"]:::ai
-        Memory[("🧠 MemorySaver<br>Thread Checkpointer")]:::ai
-
-        Router -->|"Valid Query"| Planner
-        Planner --> Sandbox
-        Sandbox -->|"Syntax Error (Self-Healing)"| Planner
-        Sandbox -->|"Valid Results"| Summarizer
-    end
-
-    %% --- DATA & DATABASE (Neo4j) ---
-    subgraph "Layer 2: Database (Neo4j)"
-        direction LR
-        DB[("🕸️ Neo4j Graph DB<br>Nodes & Edges")]:::db
-        GDS["📊 Graph Data Science<br>PageRank, Centrality, Louvain"]:::db
-        DB --- GDS
-    end
-
-    %% --- INGESTION PIPELINE ---
-    subgraph "Layer 1: Data Engineering"
-        direction TB
-        Raw["📄 Raw O2C Data<br>JSONL / CSV"]:::ingestion
-        CLI["⚙️ Ingestion CLI<br>Pydantic Validation"]:::ingestion
-        Raw --> CLI
-    end
-
-    %% --- CONNECTIONS ---
-    User <-->|"Voice, Text, Clicks"| UI
-    User <-->|"Pan, Zoom, Inspect"| WebGL
-
-    UI <-->|"POST /chat (Payload: session_id & active_node)"| API
-    WebGL <-->|"GET /graph"| API
-
-    API <-->|"State Recovery"| Memory
-    API --> Router
-    Summarizer -->|"Returns Extracted IDs & Text"| API
-
-    Sandbox <-->|"Read-Only Cypher Execution"| DB
-    CLI -->|"Write-Mode: Seeding & Ontology Building"| DB
-```
-
----
 
 ## 1. Graph Data Modeling (Ontology)
 
