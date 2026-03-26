@@ -27,7 +27,10 @@ export default function Dashboard() {
         </section>
 
         <section className="flex-[3] min-w-[350px]">
-          <ChatInterface activeNodeId={activeNodeId} />
+          <ChatInterface
+            activeNodeId={activeNodeId}
+            onClearSelection={() => setActiveNodeId(null)}
+          />
         </section>
       </div>
     </main>
