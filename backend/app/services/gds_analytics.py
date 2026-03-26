@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()  
 from neo4j import GraphDatabase
 
 class GraphAnalyticsEngine:
@@ -40,8 +42,8 @@ class GraphAnalyticsEngine:
         query = """
         CALL gds.graph.project(
             'o2c_graph',
-            ['Customer', 'Product', 'SalesOrder', 'Delivery', 'BillingDocument'],
-            ['PLACED', 'CONTAINS', 'FULFILLED_BY', 'BILLED_TO']
+            ['Customer', 'Product', 'SalesOrder', 'Delivery', 'BillingDocument', 'JournalEntry'],
+            ['PLACED', 'CONTAINS', 'FULFILLS', 'BILLED_FOR', 'POSTED_TO']
         )
         YIELD graphName, nodeCount, relationshipCount;
         """

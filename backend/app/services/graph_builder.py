@@ -1,6 +1,5 @@
 import os
 from neo4j import GraphDatabase
-from langchain_openai import OpenAIEmbeddings
 
 class GraphBuilder:
     def __init__(self):
@@ -8,72 +7,87 @@ class GraphBuilder:
             os.getenv("NEO4J_URI", "bolt://localhost:7687"),
             auth=(os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "password"))
         )
-        self.embeddings = OpenAIEmbeddings(model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"))
 
     def close(self):
         self.driver.close()
 
-    def setup_constraints_and_indexes(self):
-        """Ensure uniqueness and setup vector indexes for semantic search."""
+    def setup_constraints(self):
         queries = [
             "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Customer) REQUIRE c.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (p:Product) REQUIRE p.id IS UNIQUE",
             "CREATE CONSTRAINT IF NOT EXISTS FOR (o:SalesOrder) REQUIRE o.id IS UNIQUE",
-            
-            """
-            CREATE VECTOR INDEX product_embeddings IF NOT EXISTS
-            FOR (p:Product) ON (p.embedding)
-            OPTIONS {indexConfig: {
-              `vector.dimensions`: 1536,
-              `vector.similarity_function`: 'cosine'
-            }}
-            """
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (d:Delivery) REQUIRE d.id IS UNIQUE",
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (b:BillingDocument) REQUIRE b.id IS UNIQUE",
+            "CREATE CONSTRAINT IF NOT EXISTS FOR (j:JournalEntry) REQUIRE j.id IS UNIQUE",
         ]
         with self.driver.session() as session:
             for query in queries:
                 session.run(query)
 
-    def ingest_order_flow(self, order_data: dict, delivery_data: dict, billing_data: dict, product_data: dict):
-        """Creates the nodes and edges, calculates time deltas, and handles cancellations."""
-        
-        desc_embedding = self.embeddings.embed_query(product_data['description'])
-
-        cypher_query = """
-        // 1. Create Nodes (Phase 2.4)
-        MERGE (c:Customer {id: $order.customer_id})
-        
-        MERGE (p:Product {id: $product.product_id})
-        SET p.description = $product.description, p.embedding = $embedding
-        
-        MERGE (o:SalesOrder {id: $order.order_id})
-        SET o.date = datetime($order.order_date), o.amount = $order.amount
-        
-        MERGE (d:Delivery {id: $delivery.delivery_id})
-        SET d.date = datetime($delivery.delivery_date), d.status = $delivery.status
-        
-        MERGE (b:BillingDocument {id: $billing.billing_id})
-        // 2.6 Handle Cancellations 
-        SET b.date = datetime($billing.billing_date), b.status = $billing.status
-        
-        // 2. Build Edges & Process Mining (Phase 2.5)
-        MERGE (c)-[:PLACED]->(o)
-        MERGE (o)-[:CONTAINS]->(p)
-        
-        MERGE (o)-[fd:FULFILLED_BY]->(d)
-        // Calculate time delta in hours between order and delivery
-        SET fd.time_delta_hours = duration.inSeconds(o.date, d.date).seconds / 3600.0
-        
-        MERGE (d)-[bt:BILLED_TO]->(b)
-        // Calculate time delta between delivery and billing
-        SET bt.time_delta_hours = duration.inSeconds(d.date, b.date).seconds / 3600.0
+    def bulk_insert_nodes(self, label: str, id_field: str, batch: list):
+        """Creates the core entities."""
+        query = f"""
+        UNWIND $batch AS row
+        MERGE (n:{label} {{id: row['{id_field}']}})
+        SET n += row
         """
-        
         with self.driver.session() as session:
-            session.run(
-                cypher_query, 
-                order=order_data, 
-                delivery=delivery_data, 
-                billing=billing_data, 
-                product=product_data,
-                embedding=desc_embedding
-            )
+            session.run(query, batch=batch)
+
+
+    def link_customer_to_order(self, batch: list):
+        """Uses sales_order_headers: soldToParty -> salesOrder"""
+        query = """
+        UNWIND $batch AS row
+        MATCH (c:Customer {id: row.soldToParty})
+        MATCH (o:SalesOrder {id: row.salesOrder})
+        MERGE (c)-[:PLACED]->(o)
+        """
+        with self.driver.session() as session:
+            session.run(query, batch=batch)
+
+    def link_order_to_product(self, batch: list):
+        """Uses sales_order_items: salesOrder -> material"""
+        query = """
+        UNWIND $batch AS row
+        MATCH (o:SalesOrder {id: row.salesOrder})
+        MATCH (p:Product {id: row.material})
+        MERGE (o)-[r:CONTAINS]->(p)
+        SET r.quantity = toFloat(row.requestedQuantity), r.amount = toFloat(row.netAmount)
+        """
+        with self.driver.session() as session:
+            session.run(query, batch=batch)
+
+    def link_delivery_to_order(self, batch: list):
+        """Uses outbound_delivery_items: deliveryDocument -> referenceSdDocument"""
+        query = """
+        UNWIND $batch AS row
+        MATCH (d:Delivery {id: row.deliveryDocument})
+        MATCH (o:SalesOrder {id: row.referenceSdDocument})
+        MERGE (d)-[:FULFILLS]->(o)
+        """
+        with self.driver.session() as session:
+            session.run(query, batch=batch)
+
+    def link_billing_to_reference(self, batch: list):
+        """Uses billing_document_items: billingDocument -> referenceSdDocument"""
+        query = """
+        UNWIND $batch AS row
+        MATCH (b:BillingDocument {id: row.billingDocument})
+        // The reference could be a Delivery or Sales Order, so we match generically by ID
+        MATCH (ref {id: row.referenceSdDocument}) 
+        MERGE (b)-[:BILLED_FOR]->(ref)
+        """
+        with self.driver.session() as session:
+            session.run(query, batch=batch)
+
+    def link_billing_to_accounting(self, batch: list):
+        """Uses billing_document_headers: billingDocument -> accountingDocument"""
+        query = """
+        UNWIND $batch AS row
+        MATCH (b:BillingDocument {id: row.billingDocument})
+        MATCH (j:JournalEntry {id: row.accountingDocument})
+        MERGE (b)-[:POSTED_TO]->(j)
+        """
+        with self.driver.session() as session:
+            session.run(query, batch=batch)
