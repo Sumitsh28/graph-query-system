@@ -37,7 +37,7 @@ export default function GraphView({
   const [isLegendOpen, setIsLegendOpen] = useState<boolean>(true); // Legend state
 
   useEffect(() => {
-    fetch("http://nexus-ip.duckdns.org/api/graph")
+    fetch("https://nexus-ip.duckdns.org/api/graph")
       .then((r) => r.json())
       .then((data) => setGraphData(data))
       .catch((err) => console.error("Error fetching graph data:", err));
