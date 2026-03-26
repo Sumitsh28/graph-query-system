@@ -310,11 +310,8 @@ export default function ChatInterface({
           </div>
           <div>
             <h2 className="font-bold text-slate-800 text-sm leading-tight">
-              Supply Chain Copilot
+              Nexus: Supply Chain Copilot
             </h2>
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-              LangGraph Memory Active
-            </p>
           </div>
         </div>
 

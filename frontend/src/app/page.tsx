@@ -13,9 +13,6 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-slate-800">
           Supply Chain Context Graph
         </h1>
-        <p className="text-sm text-slate-500">
-          Powered by Neo4j GDS & LangGraph
-        </p>
       </header>
 
       <div className="flex-1 flex gap-4 min-h-0">
